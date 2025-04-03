@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Braille Converter</title>
+    <style>
+        /* Animated Background */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(45deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease infinite;
+            padding: 20px;
+            color: #ffffff;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glassmorphic Container */
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: rgba(0, 0, 50, 0.4);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 255, 0.3);
+            backdrop-filter: blur(12px);
+            transition: transform 0.3s;
+        }
+        .container:hover {
+            transform: scale(1.02);
+        }
+
+        /* File Input & Button */
+        input, button {
+            margin: 10px;
+            padding: 12px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        /* Upload Input */
+        input {
+            background: rgba(255, 255, 255, 0.3);
+            color: #333;
+        }
+
+        /* Convert Button */
+        button {
+            background: linear-gradient(45deg, #ff6ec4, #7873f5);
+            color: white;
+            font-weight: bold;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #12c2e9, #c471ed);
+            transform: scale(1.1);
+        }
+
+        /* Output Section */
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        /* Braille Neon Effect */
+        .braille {
+            font-size: 24px;
+            color: #00eaff;
+            text-shadow: 0px 0px 15px #00eaff;
+            animation: glow 1.5s infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0px 0px 8px rgba(0, 234, 255, 0.8); }
+            to { text-shadow: 0px 0px 20px rgba(0, 234, 255, 1); }
+        }
+
+        /* Image Styling */
+        img {
+            max-width: 100%;
+            margin-top: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Braille Text Converter</h2>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="processImage()">Convert to Braille</button>
+        <div id="output"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/2.1.0/tesseract.min.js"></script>
+    <script>
+        // Braille Mapping
+        const braille = ['⠴','⠂','⠆','⠒','⠲','⠢','⠖','⠶','⠦','⠔',
+                         '⠁','⠃','⠉','⠙','⠑','⠋','⠛','⠓','⠊','⠚',
+                         '⠅','⠇','⠍','⠝','⠕','⠏','⠟','⠗','⠎','⠞',
+                         '⠥','⠧','⠺','⠭','⠽','⠵','⠒','⠆','⠔','⠶',
+                         ' ','⠖','⠂','⠜','⠶','⠶','⠔','⠨','⠆','⠐',
+                         '⠢','⠜','⠌','⠶','⠒','⠤','⠤','⠠','⠨','⠚'];
+
+        const English = ['0','1','2','3','4','5','6','7','8','9',
+                         'a','b','c','d','e','f','g','h','i','j',
+                         'k','l','m','n','o','p','q','r','s','t',
+                         'u','v','w','x','y','z',':',';','<','=',' ',
+                         '!','"','#','$','%','&','','(',')','*','+',
+                         ',','-','.','/','>','?','@','[','\\',']','^','_'];
+
+        function EnglishToBraille(text) {
+            return text.toLowerCase().split('').map(char => {
+                let index = English.indexOf(char);
+                return index !== -1 ? braille[index] : '?';
+            }).join('');
+        }
+
+        async function processImage() {
+            const fileInput = document.getElementById('imageInput');
+            if (!fileInput.files.length) {
+                alert("Please select an image.");
+                return;
+            }
+            const file = fileInput.files[0];
+
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const image = new Image();
+                image.src = event.target.result;
+
+                image.onload = async function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    ctx.drawImage(image, 0, 0);
+
+                    // Use Tesseract.js for OCR
+                    const { createWorker } = Tesseract;
+                    const worker = await createWorker();
+                    await worker.load();
+                    await worker.loadLanguage('eng');
+                    await worker.initialize('eng');
+                    const { data: { text } } = await worker.recognize(canvas);
+                    await worker.terminate();
+
+                    const brailleText = EnglishToBraille(text);
+
+                    document.getElementById('output').innerHTML = `
+                        <h3>Results</h3>
+                        <p><strong>Extracted Text:</strong> ${text}</p>
+                        <p><strong>Braille:</strong> <span class="braille">${brailleText}</span></p>
+                        <img src="${event.target.result}" alt="Uploaded Image">
+                    `;
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+
+</body>
+</html>
